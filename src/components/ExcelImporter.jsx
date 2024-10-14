@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Upload, Button, Table, DatePicker, Select, Spin, Row, Col } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
@@ -28,14 +28,14 @@ const ExcelImporter = () => {
   const [reportStatus, setReportStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filtering, setFiltering] = useState(false);
-// Función para dividir un array en fragmentos de un tamaño especificado
-const chunkArray = (array, size) => {
-  const result = [];
-  for (let i = 0; i < array.length; i += size) {
-    result.push(array.slice(i, i + size));
-  }
-  return result;
-};
+  // Función para dividir un array en fragmentos de un tamaño especificado
+  const chunkArray = (array, size) => {
+    const result = [];
+    for (let i = 0; i < array.length; i += size) {
+      result.push(array.slice(i, i + size));
+    }
+    return result;
+  };
 
   const handleFileUpload = (file) => {
     setLoading(true);
@@ -131,17 +131,17 @@ const chunkArray = (array, size) => {
     const filteredData = getFilteredData();
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Estadísticas');
-  
+
     // Tabla: Clasificación de Entradas y Salidas por Año y Mes
     worksheet.addRow(['Clasificación de Entradas y Salidas por Año y Mes']);
     worksheet.addRow(['Año', 'Mes', 'Entradas', 'Salidas']);
-  
+
     const classificationData = {};
-  
+
     filteredData.forEach((row) => {
       const entryDate = row['Fecha Petición'] instanceof Date ? row['Fecha Petición'] : null;
       const exitDate = row['Fecha Informe'] instanceof Date ? row['Fecha Informe'] : null;
-  
+
       if (entryDate) {
         const year = entryDate.getFullYear();
         const month = entryDate.getMonth() + 1;
@@ -149,7 +149,7 @@ const chunkArray = (array, size) => {
         if (!classificationData[year][month]) classificationData[year][month] = { entradas: 0, salidas: 0 };
         classificationData[year][month].entradas += 1;
       }
-  
+
       if (exitDate) {
         const year = exitDate.getFullYear();
         const month = exitDate.getMonth() + 1;
@@ -158,17 +158,17 @@ const chunkArray = (array, size) => {
         classificationData[year][month].salidas += 1;
       }
     });
-  
+
     const monthNames = [
       '', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
       'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
     ];
-  
+
     Object.entries(classificationData).forEach(([year, months]) => {
       let firstRow = true;
       let yearEntradasTotal = 0;
       let yearSalidasTotal = 0;
-  
+
       Object.entries(months).forEach(([month, counts]) => {
         worksheet.addRow([
           firstRow ? year : '', // Solo muestra el año en la primera fila
@@ -176,68 +176,78 @@ const chunkArray = (array, size) => {
           counts.entradas,
           counts.salidas,
         ]);
-  
+
         yearEntradasTotal += counts.entradas;
         yearSalidasTotal += counts.salidas;
         firstRow = false;
       });
-  
+
       worksheet.addRow([
-        '', 
-        'Total', 
-        yearEntradasTotal, 
+        '',
+        'Total',
+        yearEntradasTotal,
         yearSalidasTotal,
       ]);
     });
-  
-    // Tabla adicional: Clasificación de registros pendientes por técnico
-    worksheet.addRow([]);
-    worksheet.addRow(['Clasificación de Registros Pendientes por Técnico']);
-    worksheet.addRow(['Técnico', 'Registros Pendientes']);
-  
-    const pendingRecordsByTechnician = {};
-  
-    filteredData.forEach((row) => {
-      const technician = row["Técnico"];
-      const isPending = !row["Fecha Informe"];
-  
-      if (isPending && technician) {
-        if (!pendingRecordsByTechnician[technician]) {
-          pendingRecordsByTechnician[technician] = 0;
-        }
-        pendingRecordsByTechnician[technician] += 1;
+
+  // Tabla: Clasificación de registros pendientes por técnico
+  worksheet.addRow([]);
+  worksheet.addRow(['Clasificación de Registros Pendientes por Técnico']);
+  worksheet.addRow(['Técnico', 'Registros Pendientes']);
+
+  const pendingRecordsByTechnician = {};
+  let totalPendingRecords = 0;
+
+  filteredData.forEach((row) => {
+    const technician = row["Técnico"] || "Sin Técnico";
+    const isPending = !row["Fecha Informe"];
+
+    if (isPending) {
+      if (!pendingRecordsByTechnician[technician]) {
+        pendingRecordsByTechnician[technician] = 0;
       }
-    });
-  
-    Object.entries(pendingRecordsByTechnician).forEach(([technician, count]) => {
-      worksheet.addRow([technician, count]);
-    });
-  
-    // Tabla adicional: Clasificación de registros sacados por técnico
-    worksheet.addRow([]);
-    worksheet.addRow(['Clasificación de Registros Sacados por Técnico']);
-    worksheet.addRow(['Técnico', 'Registros Sacados']);
-  
-    const completedRecordsByTechnician = {};
-  
-    filteredData.forEach((row) => {
-      const technician = row["Técnico"];
-      const isCompleted = row["Fecha Informe"] instanceof Date;
-  
-      if (isCompleted && technician) {
-        if (!completedRecordsByTechnician[technician]) {
-          completedRecordsByTechnician[technician] = 0;
-        }
-        completedRecordsByTechnician[technician] += 1;
+      pendingRecordsByTechnician[technician] += 1;
+      totalPendingRecords += 1;
+    }
+  });
+
+  Object.entries(pendingRecordsByTechnician).forEach(([technician, count]) => {
+    worksheet.addRow([technician, count]);
+  });
+
+  // Añadir fila de total de registros pendientes
+  worksheet.addRow(['Total', totalPendingRecords]);
+
+  // Tabla: Clasificación de registros sacados por técnico
+  worksheet.addRow([]);
+  worksheet.addRow(['Clasificación de Registros Sacados por Técnico']);
+  worksheet.addRow(['Técnico', 'Registros Sacados']);
+
+  const completedRecordsByTechnician = {};
+  let totalCompletedRecords = 0;
+
+  filteredData.forEach((row) => {
+    const technician = row["Técnico"] || "Sin Técnico";
+    const isCompleted = row["Fecha Informe"] instanceof Date;
+
+    if (isCompleted) {
+      if (!completedRecordsByTechnician[technician]) {
+        completedRecordsByTechnician[technician] = 0;
       }
-    });
-  
-    Object.entries(completedRecordsByTechnician).forEach(([technician, count]) => {
-      worksheet.addRow([technician, count]);
-    });
-  
-    const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), 'Estadísticas.xlsx');
+      completedRecordsByTechnician[technician] += 1;
+      totalCompletedRecords += 1;
+    }
+  });
+
+  Object.entries(completedRecordsByTechnician).forEach(([technician, count]) => {
+    worksheet.addRow([technician, count]);
+  });
+
+  // Añadir fila de total de registros sacados
+  worksheet.addRow(['Total', totalCompletedRecords]);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), 'Estadísticas.xlsx');
   };
   const getFilteredData = () => {
     return data.filter((row) => {
@@ -265,8 +275,25 @@ const chunkArray = (array, size) => {
   const filteredData = getFilteredData();
 
   return (
-    <div style={{ padding: 20 }}>
-      <Upload beforeUpload={handleFileUpload} showUploadList={false}>
+    <div style={{
+      padding: 20,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'left',
+      width: '100%',
+      backgroundColor: '#ffffff',
+      borderRadius: 10,
+      boxShadow: '0px 0px 10px 0px rgba(0,0,0,0.1)',
+    }}>
+      <Upload beforeUpload={handleFileUpload} showUploadList={false} style={{
+        marginBottom: 40,
+        display: 'flex',
+        justifyContent: 'left',
+        alignItems: 'left',
+        alignSelf: 'left',
+
+      }}>
         <Button icon={<UploadOutlined />}>Importar Excel</Button>
       </Upload>
 
@@ -274,73 +301,85 @@ const chunkArray = (array, size) => {
         <Spin tip="Cargando datos..." style={{ margin: '20px 0' }} />
       ) : (
         <>
-          <Row gutter={16} style={{ marginTop: 20, marginBottom: 20, display: 'flex', justifyContent: 'left', alignItems: 'center' }}>
-            {columns.map((col) =>
-              col.isDate ? (
-                <Col key={col.dataIndex} style={{ marginBottom: 10, display: 'flex', flexDirection: 'column' }}>
-                  <span>{col.title}</span>
-                  <RangePicker
-                    size="small"
-                    placeholder={["Fecha Inicio", "Fecha Fin"]}
-                    onChange={(dates) => handleDateRangeFilterChange(col.dataIndex, dates)}
-                    format="DD/MM/YYYY"
-                  />
+          {columns.length > 0 &&
+            <>
+              <Row gutter={16} style={{
+                marginTop: 20,
+                marginBottom: 20,
+                display: 'flex',
+                justifyContent: 'left',
+                alignItems: 'center',
+                width: '100%',
+              }}>
+                {columns.map((col) =>
+                  col.isDate ? (
+                    <Col key={col.dataIndex} style={{ marginBottom: 10, display: 'flex', flexDirection: 'column' }}>
+                      <span>{col.title}</span>
+                      <RangePicker
+                        size="small"
+                        placeholder={["Fecha Inicio", "Fecha Fin"]}
+                        onChange={(dates) => handleDateRangeFilterChange(col.dataIndex, dates)}
+                        format="DD/MM/YYYY"
+                      />
+                    </Col>
+                  ) : null
+                )}
+              </Row>
+              <Row style={{ marginBottom: 20, width: '100% ' }} gutter={12}>
+                {technicians.length > 0 && (
+                  <Col span={12} style={{ marginBottom: 10, display: 'flex', flexDirection: 'column' }}>
+                    <span>Filtro por Técnico</span>
+                    <Select
+                      mode="multiple"
+                      placeholder="Selecciona Técnico"
+                      style={{ width: '100%' }}
+                      onChange={setSelectedTechnicians}
+                      value={selectedTechnicians}
+                    >
+                      {technicians.map((tech) => (
+                        <Option key={tech} value={tech}>
+                          {tech}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Col>
+                )}
+                <Col span={12} style={{ marginBottom: 10, display: 'flex', flexDirection: 'column' }}>
+                  <span>Estado del Informe</span>
+                  <Select
+                    placeholder="Selecciona Estado"
+                    style={{ width: '100%' }}
+                    onChange={setReportStatus}
+                    value={reportStatus}
+                  >
+                    <Option value="Todos">Todos</Option>
+                    <Option value="Pendiente">Pendiente</Option>
+                    <Option value="Sacado">Sacado</Option>
+                  </Select>
                 </Col>
-              ) : null
-            )}
-          </Row>
-          <Row style={{ marginBottom: 20 }} gutter={12}>
-            {technicians.length > 0 && (
-              <Col span={12} style={{ marginBottom: 10, display: 'flex', flexDirection: 'column' }}>
-                <span>Filtro por Técnico</span>
-                <Select
-                  mode="multiple"
-                  placeholder="Selecciona Técnico"
-                  style={{ width: '100%' }}
-                  onChange={setSelectedTechnicians}
-                  value={selectedTechnicians}
-                >
-                  {technicians.map((tech) => (
-                    <Option key={tech} value={tech}>
-                      {tech}
-                    </Option>
-                  ))}
-                </Select>
-              </Col>
-            )}
-            <Col span={12} style={{ marginBottom: 10, display: 'flex', flexDirection: 'column' }}>
-              <span>Estado del Informe</span>
-              <Select
-                placeholder="Selecciona Estado"
-                style={{ width: '100%' }}
-                onChange={setReportStatus}
-                value={reportStatus}
-              >
-                <Option value="Todos">Todos</Option>
-                <Option value="Pendiente">Pendiente</Option>
-                <Option value="Sacado">Sacado</Option>
-              </Select>
-            </Col>
-          </Row>
-          <Row>
-            <Col>
-              <Button type="primary" onClick={applyDateFilters} style={{ marginTop: 10 }}>
-                Aplicar Filtros
-              </Button>
-            </Col>
-            <Col>
-              <Button type="primary" onClick={exportFilteredDataWithClassification} style={{ marginTop: 10, marginLeft: 10 }}>
-                Exportar Datos y Clasificación
-              </Button>
-            </Col>
-          </Row>
-          <div style={{ marginBottom: 10 }}>
-            <strong>Total de registros: {filteredData.length}</strong>
-          </div>
+              </Row>
+              <Row>
+                <Col>
+                  <Button type="primary" onClick={applyDateFilters} style={{ marginTop: 10 }}>
+                    Aplicar Filtros
+                  </Button>
+                </Col>
+                <Col>
+                  <Button type="primary" onClick={exportFilteredDataWithClassification} style={{ marginTop: 10, marginLeft: 10 }}>
+                    Exportar Datos y Clasificación
+                  </Button>
+                </Col>
+              </Row>
+              <div style={{ marginBottom: 10 }}>
+                <strong>Total de registros: {filteredData.length}</strong>
+              </div>
+            </>
+          }
+
           {filtering ? (
-            <Spin tip="Aplicando filtros..." style={{ margin: '20px 0' }} />
+            <Spin size='large' tip="Aplicando filtros..." style={{ margin: '20px 0' }} />
           ) : (
-            <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+            <div style={{ overflowX: 'auto', maxWidth: '100%', width: '100%', marginTop: 20 }}>
               <Table columns={columns} dataSource={filteredData} pagination={false} scroll={{ x: 'max-content' }} />
             </div>
           )}
