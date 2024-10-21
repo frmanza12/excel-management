@@ -10,12 +10,24 @@ const { Option } = Select;
 
 const convertExcelDate = (excelDate) => {
   if (typeof excelDate === 'number') {
-    const date = new Date((excelDate - 25569) * 86400 * 1000);
-    if (date.getFullYear() >= 1900 && date.getFullYear() <= 2100) {
+    let date = new Date((excelDate - 25569) * 86400 * 1000);
+
+    // Corrección para fechas antes del 1 de marzo de 1900 por el error en Excel
+    if (date.getFullYear() === 1899) {
+      console.warn('Fecha corregida de Excel (1899-12-30) a (1900-01-01)');
+      return new Date(1900, 0, 1); // Ajustamos sumando un día extra
+    }
+
+    // Solo retornamos si la fecha es válida y está en el rango razonable
+    if (date.getFullYear() >= 1899 && date.getFullYear() <= 2100) {
       return date;
     }
+    // Si la fecha no es válida, retornamos null para evitar mostrar un valor incorrecto
+    return null;
   }
-  return excelDate;
+  
+  // Retornamos null si no es un número (no hay fecha)
+  return null;
 };
 
 const ExcelImporter = () => {
