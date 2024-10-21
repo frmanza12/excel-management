@@ -190,84 +190,116 @@ const ExcelImporter = () => {
       ]);
     });
 
-  // Tabla: Clasificación de registros pendientes por técnico
-  worksheet.addRow([]);
-  worksheet.addRow(['Clasificación de Registros Pendientes por Técnico']);
-  worksheet.addRow(['Técnico', 'Registros Pendientes']);
+    // Tabla: Clasificación de registros pendientes por técnico
+    worksheet.addRow([]);
+    worksheet.addRow(['Clasificación de Registros Pendientes por Técnico']);
+    worksheet.addRow(['Técnico', 'Registros Pendientes']);
 
-  const pendingRecordsByTechnician = {};
-  let totalPendingRecords = 0;
+    const pendingRecordsByTechnician = {};
+    let totalPendingRecords = 0;
 
-  filteredData.forEach((row) => {
-    const technician = row["Técnico"] || "Sin Técnico";
-    const isPending = !row["Fecha Informe"];
+    filteredData.forEach((row) => {
+      const technician = row["Técnico"] || "Sin Técnico";
+      const isPending = !row["Fecha Informe"];
 
-    if (isPending) {
-      if (!pendingRecordsByTechnician[technician]) {
-        pendingRecordsByTechnician[technician] = 0;
+      if (isPending) {
+        if (!pendingRecordsByTechnician[technician]) {
+          pendingRecordsByTechnician[technician] = 0;
+        }
+        pendingRecordsByTechnician[technician] += 1;
+        totalPendingRecords += 1;
       }
-      pendingRecordsByTechnician[technician] += 1;
-      totalPendingRecords += 1;
-    }
-  });
+    });
 
-  Object.entries(pendingRecordsByTechnician).forEach(([technician, count]) => {
-    worksheet.addRow([technician, count]);
-  });
+    Object.entries(pendingRecordsByTechnician).forEach(([technician, count]) => {
+      worksheet.addRow([technician, count]);
+    });
 
-  // Añadir fila de total de registros pendientes
-  worksheet.addRow(['Total', totalPendingRecords]);
+    // Añadir fila de total de registros pendientes
+    worksheet.addRow(['Total', totalPendingRecords]);
 
-  // Tabla: Clasificación de registros sacados por técnico
-  worksheet.addRow([]);
-  worksheet.addRow(['Clasificación de Registros Sacados por Técnico']);
-  worksheet.addRow(['Técnico', 'Registros Sacados']);
+    // Tabla: Clasificación de registros sacados por técnico
+    worksheet.addRow([]);
+    worksheet.addRow(['Clasificación de Registros Sacados por Técnico']);
+    worksheet.addRow(['Técnico', 'Registros Sacados']);
 
-  const completedRecordsByTechnician = {};
-  let totalCompletedRecords = 0;
+    const completedRecordsByTechnician = {};
+    let totalCompletedRecords = 0;
 
-  filteredData.forEach((row) => {
-    const technician = row["Técnico"] || "Sin Técnico";
-    const isCompleted = row["Fecha Informe"] instanceof Date;
+    filteredData.forEach((row) => {
+      const technician = row["Técnico"] || "Sin Técnico";
+      const isCompleted = row["Fecha Informe"] instanceof Date;
 
-    if (isCompleted) {
-      if (!completedRecordsByTechnician[technician]) {
-        completedRecordsByTechnician[technician] = 0;
+      if (isCompleted) {
+        if (!completedRecordsByTechnician[technician]) {
+          completedRecordsByTechnician[technician] = 0;
+        }
+        completedRecordsByTechnician[technician] += 1;
+        totalCompletedRecords += 1;
       }
-      completedRecordsByTechnician[technician] += 1;
-      totalCompletedRecords += 1;
-    }
-  });
+    });
 
-  Object.entries(completedRecordsByTechnician).forEach(([technician, count]) => {
-    worksheet.addRow([technician, count]);
-  });
+    Object.entries(completedRecordsByTechnician).forEach(([technician, count]) => {
+      worksheet.addRow([technician, count]);
+    });
 
-  // Añadir fila de total de registros sacados
-  worksheet.addRow(['Total', totalCompletedRecords]);
+    // Añadir fila de total de registros sacados
+    worksheet.addRow(['Total', totalCompletedRecords]);
+   // Nueva tabla: Contar registros con "Fecha Informe" = 1/1/1900 (sobre todos los registros, no filtrados)
+   worksheet.addRow([]);
+   worksheet.addRow(['Contabilización de Registros con Fecha Informe 1/1/1900']);
+ 
+   const invalidDateCount = data.reduce((count, row) => {
+     const exitDate = row['Fecha Informe'];
+     // Verificamos si la fecha es exactamente 1/1/1900
+     if (exitDate instanceof Date && exitDate.getFullYear() === 1900 && exitDate.getMonth() === 0 && exitDate.getDate() === 1) {
+       return count + 1;
+     }
+     return count;
+   }, 0);
+ 
+   worksheet.addRow(['Total Registros con Fecha Informe 1/1/1900', invalidDateCount]);
+ 
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([buffer]), 'Estadísticas.xlsx');
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), 'Estadísticas.xlsx');
   };
   const getFilteredData = () => {
     return data.filter((row) => {
-      const passesDateFilters = columns.every((col) => {
-        if (col.isDate && appliedDateFilters[col.dataIndex]) {
-          const rowDate = row[col.dataIndex];
-          if (!(rowDate instanceof Date)) return false;
+      let passesDateFilters = false; // Empezamos con `false` para aplicar el filtro correctamente
 
-          const [startDate, endDate] = appliedDateFilters[col.dataIndex];
-          return (!startDate || rowDate >= startDate) && (!endDate || rowDate <= endDate);
+      // Filtrado de "Fecha Petición" (si está disponible en los filtros aplicados)
+      if (appliedDateFilters['Fecha Petición']) {
+        const entryDate = row['Fecha Petición'];
+        const [startDate, endDate] = appliedDateFilters['Fecha Petición'];
+
+        if (entryDate instanceof Date && entryDate !== null) { // Excluir fechas en blanco
+          const isInEntryDateRange = (!startDate || entryDate >= startDate) && (!endDate || entryDate <= endDate);
+          passesDateFilters = passesDateFilters || isInEntryDateRange; // Aplicamos OR
         }
-        return true;
-      });
+      }
 
+      // Filtrado de "Fecha Informe" (si está disponible en los filtros aplicados)
+      if (appliedDateFilters['Fecha Informe']) {
+        const exitDate = row['Fecha Informe'];
+        const [startDate, endDate] = appliedDateFilters['Fecha Informe'];
+
+        if (exitDate instanceof Date && exitDate !== null) { // Excluir fechas en blanco
+          const isInExitDateRange = (!startDate || exitDate >= startDate) && (!endDate || exitDate <= endDate);
+          passesDateFilters = passesDateFilters || isInExitDateRange; // Aplicamos OR
+        }
+      }
+
+      // Filtro de Técnico
       const passesTechnicianFilter = selectedTechnicians.length === 0 || selectedTechnicians.includes(row["Técnico"]);
+
+      // Filtro de estado del informe (Pendiente o Sacado)
       const passesReportStatusFilter =
         !reportStatus || reportStatus === 'Todos' ||
         (reportStatus === 'Pendiente' && !row["Fecha Informe"]) ||
         (reportStatus === 'Sacado' && row["Fecha Informe"]);
 
+      // Solo aceptamos si pasa al menos un filtro de fechas y los demás filtros
       return passesDateFilters && passesTechnicianFilter && passesReportStatusFilter;
     });
   };
