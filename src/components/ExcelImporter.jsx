@@ -25,7 +25,7 @@ const convertExcelDate = (excelDate) => {
     // Si la fecha no es válida, retornamos null para evitar mostrar un valor incorrecto
     return null;
   }
-  
+
   // Retornamos null si no es un número (no hay fecha)
   return null;
 };
@@ -257,21 +257,31 @@ const ExcelImporter = () => {
 
     // Añadir fila de total de registros sacados
     worksheet.addRow(['Total', totalCompletedRecords]);
-   // Nueva tabla: Contar registros con "Fecha Informe" = 1/1/1900 (sobre todos los registros, no filtrados)
-   worksheet.addRow([]);
-   worksheet.addRow(['Contabilización de Registros con Fecha Informe 1/1/1900']);
- 
-   const invalidDateCount = data.reduce((count, row) => {
-     const exitDate = row['Fecha Informe'];
-     // Verificamos si la fecha es exactamente 1/1/1900
-     if (exitDate instanceof Date && exitDate.getFullYear() === 1900 && exitDate.getMonth() === 0 && exitDate.getDate() === 1) {
-       return count + 1;
-     }
-     return count;
-   }, 0);
- 
-   worksheet.addRow(['Total Registros con Fecha Informe 1/1/1900', invalidDateCount]);
- 
+    // Nueva tabla: Contar registros con "Fecha Informe" = 1/1/1900 (sobre todos los registros, no filtrados)
+    worksheet.addRow([]);
+    worksheet.addRow(['Contabilización de Registros con Fecha Informe 1/1/1900']);
+
+    const invalidDateCount = data.reduce((count, row) => {
+      const exitDate = row['Fecha Informe'];
+      // Verificamos si la fecha es exactamente 1/1/1900
+      if (exitDate instanceof Date && exitDate.getFullYear() === 1900 && exitDate.getMonth() === 0 && exitDate.getDate() === 1) {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+
+    worksheet.addRow(['Total Registros con Fecha Informe 1/1/1900', invalidDateCount]);
+    // Nueva tabla: Remitentes únicos
+    worksheet.addRow([]);
+    worksheet.addRow(['Lista de Remitente Únicos']);
+
+    // Extraer remitentes únicos
+    const uniqueRemitentes = [...new Set(data.map(row => row['Remitente']).filter(Boolean))];
+
+    // Añadir los remitentes únicos a la hoja de cálculo
+    uniqueRemitentes.forEach((remitente) => {
+      worksheet.addRow([remitente]);
+    });
 
     const buffer = await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), 'Estadísticas.xlsx');
